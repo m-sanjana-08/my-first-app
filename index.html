@@ -1,6 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBjiCKopVB8Ke1G_dOR0a3403AmHT3qdOQ",
+    authDomain: "my-first-app-23e0e.firebaseapp.com",
+    projectId: "my-first-app-23e0e",
+    storageBucket: "my-first-app-23e0e.firebasestorage.app",
+    messagingSenderId: "408517496232",
+    appId: "1:408517496232:web:cdb582589c06256ec2219d",
+    measurementId: "G-J7BHMZXG29"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+    import { getAuth, GoogleAuthProvider, signInWithPopup } 
+  from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+    const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+function signIn() {
+  signInWithPopup(auth, provider)
+    .then(result => {
+      const user = result.user;
+      document.querySelector('.greeting h1').textContent =
+        `Hello, ${user.displayName}! 🌸`;
+    })
+    .catch(error => console.error(error));
+}
+</script>
   <meta charset="utf-8" />
   <title>Task Planner</title>
   <link rel="icon" type="image/png" href="favicon.png">
@@ -155,6 +193,7 @@
         <div class="greeting">
           <h1>Hello, Sanjana! 🌸</h1>
           <p>Here’s your tasks for today ✨</p>
+          <button class="primary" onclick="signIn()">Sign in with Google</button>
         </div>
       </header>
 
