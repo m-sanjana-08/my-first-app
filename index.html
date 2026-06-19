@@ -2,14 +2,10 @@
 <html>
 <head>
   <script type="module">
-  // Import the functions you need from the SDKs you need
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  import { getAuth, GoogleAuthProvider, signInWithPopup } 
+    from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
   const firebaseConfig = {
     apiKey: "AIzaSyBjiCKopVB8Ke1G_dOR0a3403AmHT3qdOQ",
     authDomain: "my-first-app-23e0e.firebaseapp.com",
@@ -20,26 +16,16 @@
     measurementId: "G-J7BHMZXG29"
   };
 
-  // Initialize Firebase
   const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  import { getAuth, GoogleAuthProvider, signInWithPopup } 
-    from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
 
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-
-function signIn() {
-  signInWithPopup(auth, provider)
-    .then(result => {
-      const user = result.user;
-      document.querySelector('.greeting h1').textContent =
-        `Hello, ${user.displayName}! 🌸`;
-    })
-    .catch(error => console.error(error));
-}
-window.signIn = signIn;  
+  // 👇 expose to global scope
+  window.auth = auth;
+  window.provider = provider;
+  window.signInWithPopup = signInWithPopup;
 </script>
+
   <meta charset="utf-8" />
   <title>Task Planner</title>
   <link rel="icon" type="image/png" href="favicon.png">
@@ -816,5 +802,17 @@ window.signIn = signIn;
     // expose for debugging
     window._tp = { addTask, renderTaskList, parseStoredTasks, saveTasksToStorage, composingSubtasks, renderSubtaskPreview, applyBaseColor, setDarkMode };
   </script>
+  <script>
+  function signIn() {
+    signInWithPopup(auth, provider)
+      .then(result => {
+        const user = result.user;
+        document.querySelector('.greeting h1').textContent =
+          `Hello, ${user.displayName}! 🌸`;
+      })
+      .catch(error => console.error(error));
+  }
+</script>
+
 </body>
 </html>
