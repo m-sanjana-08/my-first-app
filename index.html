@@ -23,10 +23,10 @@
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
-    import { getAuth, GoogleAuthProvider, signInWithPopup } 
-  from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup } 
+    from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
-    const auth = getAuth(app);
+const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 function signIn() {
@@ -38,6 +38,7 @@ function signIn() {
     })
     .catch(error => console.error(error));
 }
+window.signIn = signIn;  
 </script>
   <meta charset="utf-8" />
   <title>Task Planner</title>
@@ -192,8 +193,8 @@ function signIn() {
       <header>
         <div class="greeting">
           <h1>Hello! 🌸</h1>
-          <p>Here’s your tasks for today ✨</p>
           <button class="primary" onclick="signIn()">Sign in with Google</button>
+          <p>Here’s your tasks for today ✨</p>
         </div>
       </header>
 
