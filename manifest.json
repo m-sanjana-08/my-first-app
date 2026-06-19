@@ -1,0 +1,15 @@
+{
+  "name": "Task Planner",
+  "short_name": "Task Planner",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7c8e0",
+  "theme_color": "#f7c8e0",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}
