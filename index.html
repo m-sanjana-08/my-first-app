@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Task Planner</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg1:#fdf6f0;
+      --bg2:#fff0f6;
+      --accent:#6c5ce7;
+      --muted:#6f6b8f;
+      --card:#fffafc;
+      --tab-bg: #fffafc;
+      --tab-active:#d98fb8;
+      --task-border: rgba(0,0,0,0.06);
+      --subtask-bg: rgba(0,0,0,0.02);
+      --important:#d98fb8;
+      --reminder:#6c5ce7;
+      --button:#81ecec;
+      --content-width:1100px;
+      --task-column:520px;
+      --text:#222;
+      --banner:#f7f0ff;
+    }
+
+    /* Dark mode base overrides (only backgrounds / card / muted / text default) */
+    body.dark {
+      --bg1:#07101a;
+      --bg2:#0b1522;
+      --card:#0f1724;
+      --tab-bg:#0b1a2a;
+      --tab-active: #2b3b5a;
+      --task-border: rgba(255,255,255,0.06);
+      --subtask-bg: rgba(255,255,255,0.02);
+      --muted:#bfc7df;
+      --banner:#0b1726;
+      /* --text will be explicitly set to white in JS when dark mode is enabled */
+    }
+
+    /* Layout & visuals */
+    body {
+      font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      margin: 0;
+      padding: 28px;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 60%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .page { width:100%; max-width:var(--content-width); display:flex; gap:20px; justify-content:center; align-items:flex-start; }
+    .content { width:100%; max-width:900px; }
+
+    header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+    .greeting h1{ margin:0; color:var(--accent); font-size:22px; }
+    .greeting p{ margin:0; color:var(--muted); font-size:13px; }
+
+    .tabs{ display:flex; gap:10px; }
+    .tab{
+      padding:8px 14px;
+      border-radius:20px;
+      background:var(--tab-bg);
+      border:1px solid var(--task-border);
+      cursor:pointer;
+      font-weight:600;
+      color:var(--text);
+      transition:background .12s, color .12s, border-color .12s;
+    }
+    .tab.active{
+      background:var(--tab-active);
+      color:var(--text);
+      box-shadow:0 6px 18px rgba(0,0,0,0.06);
+    }
+
+    .controls{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; align-items:center; }
+    input[type="text"], input[type="date"], input[type="time"], select {
+      padding:8px 10px; border-radius:8px; border:1px solid var(--task-border); background:var(--card); color:var(--text);
+    }
+    input[type="text"]{ flex:1 1 320px; min-width:160px; }
+    input[type="date"], input[type="time"], select{ flex:0 0 130px; }
+
+    .subtask-controls{ display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+    .subtask-preview{ display:flex; gap:8px; flex-wrap:wrap; margin-left:6px; }
+    .pill{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:var(--subtask-bg); font-size:13px; color:var(--text); border:1px solid var(--task-border); }
+
+    button.primary{ background:var(--button); border:none; padding:9px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:var(--text); box-shadow:0 6px 14px rgba(0,0,0,0.06); }
+    button.icon{ background:transparent; border:none; cursor:pointer; font-size:16px; padding:6px; border-radius:8px; color:var(--text); }
+
+    .task-area{ display:flex; justify-content:center; margin-top:8px; }
+    #taskListWrapper{ width:100%; max-width:var(--task-column); }
+    #taskList{ margin-top:12px; padding:0; list-style:none; }
+    .task{
+      background: linear-gradient(180deg, var(--card) 0%, rgba(255,255,255,0.02) 100%);
+      border-radius:12px; padding:12px; margin-bottom:10px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.06);
+      display:flex; flex-direction:column; gap:8px;
+      border:1px solid var(--task-border);
+      color:var(--text);
+    }
+    .task.done{ opacity:0.85; text-decoration:line-through; color:rgba(0,0,0,0.45); }
+
+    .task-top{ display:flex; align-items:center; gap:10px; justify-content:space-between; }
+    .left{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .title{ font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+    .title[contenteditable="true"]{ padding:4px 6px; border-radius:6px; background:rgba(255,255,255,0.02); outline:2px dashed rgba(0,0,0,0.06); }
+
+    .meta{ display:flex; gap:8px; align-items:center; font-size:12px; color:var(--muted); }
+    .tag{ padding:4px 8px; border-radius:999px; font-weight:600; font-size:12px; }
+    .tag.important{ background:var(--important); color:var(--text); }
+    .tag.reminder{ background:var(--reminder); color:#fff; }
+
+    .task-actions{ display:flex; gap:8px; align-items:center; }
+    .icon-btn{ background:transparent; border:none; cursor:pointer; font-size:16px; padding:6px; border-radius:8px; color:var(--text); }
+    .icon-btn:hover{ background:rgba(0,0,0,0.04); }
+
+    .subtasks{ margin:0; padding-left:18px; font-size:14px; display:flex; flex-direction:column; gap:6px; }
+    .subtask{ display:flex; gap:8px; align-items:center; padding:6px; border-radius:8px; background:var(--subtask-bg); border:1px solid var(--task-border); color:var(--text); }
+
+    .task-composer{ display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+    .task-composer input[type="text"]{ flex:1 1 160px; min-width:120px; padding:6px; border-radius:8px; }
+    .task-composer input[type="time"]{ flex:0 0 110px; }
+
+    .right-panel { width:220px; display:flex; flex-direction:column; gap:12px; align-items:flex-start; position:sticky; top:28px; }
+    .right-panel .row { display:flex; gap:8px; align-items:center; width:100%; }
+    .toggle { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; margin-left:auto; }
+    .switch { width:44px; height:26px; background:rgba(0,0,0,0.08); border-radius:999px; position:relative; }
+    .knob { width:20px; height:20px; background:#fff; border-radius:50%; position:absolute; top:3px; left:3px; box-shadow:0 2px 6px rgba(0,0,0,0.12); transition:left .18s, background .18s; }
+    body.dark .switch { background:rgba(255,255,255,0.12); }
+    body.dark .knob { background:#fff; }
+
+    input[type="color"] { -webkit-appearance: none; border: none; width:100%; height:44px; padding:0; background:transparent; cursor:pointer; border-radius:8px; }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding:0; border-radius:8px; }
+    input[type="color"]::-webkit-color-swatch { border-radius:8px; border:2px solid rgba(0,0,0,0.06); }
+
+    footer{ margin-top:18px; text-align:center; color:var(--accent); font-weight:600; }
+    footer .banner{ display:inline-block; background:var(--banner); padding:8px 14px; border-radius:20px; box-shadow:0 6px 14px rgba(0,0,0,0.06); color:var(--text); }
+
+    @media (max-width:980px){
+      .page{ flex-direction:column; align-items:center; gap:12px; }
+      .right-panel{ position:static; width:100%; display:flex; justify-content:center; gap:12px; }
+      #taskListWrapper{ max-width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="content">
+      <header>
+        <div class="greeting">
+          <h1>Hello, Sanjana! 🌸</h1>
+          <p>Here’s your tasks for today ✨</p>
+        </div>
+      </header>
+
+      <div class="top-row">
+        <nav class="tabs" role="tablist" aria-label="Task categories">
+          <div class="tab active" role="tab" data-filter="today" onclick="filterTasks('today', this)">Today</div>
+          <div class="tab" role="tab" data-filter="upcoming" onclick="filterTasks('upcoming', this)">Upcoming</div>
+          <div class="tab" role="tab" data-filter="important" onclick="filterTasks('important', this)">Important</div>
+          <div class="tab" role="tab" data-filter="completed" onclick="filterTasks('completed', this)">Completed</div>
+        </nav>
+      </div>
+
+      <section class="controls" aria-label="Add task">
+        <input id="taskInput" type="text" placeholder="e.g., Grocery shopping" aria-label="Task title">
+        <input id="dueDate" type="date" aria-label="Due date">
+        <input id="dueTime" type="time" aria-label="Due time">
+        <select id="priority" aria-label="Priority">
+          <option value="">Priority</option>
+          <option value="important">Important</option>
+          <option value="normal">Normal</option>
+        </select>
+        <button class="primary" onclick="addTask()">Add</button>
+      </section>
+
+      <div class="subtask-controls" aria-label="Subtask composer">
+        <input id="subtaskInput" type="text" placeholder="Subtask name (e.g., Milk)" style="flex:0 0 200px;">
+        <input id="subtaskTime" type="time" style="flex:0 0 120px;">
+        <button class="primary" type="button" onclick="addSubtaskPreview()">＋</button>
+        <div id="subtaskPreview" class="subtask-preview" aria-live="polite"></div>
+      </div>
+
+      <div class="task-area">
+        <div id="taskListWrapper">
+          <ul id="taskList" aria-live="polite"></ul>
+        </div>
+      </div>
+
+      <footer><div class="banner">🌈 You can do it! 🌈</div></footer>
+    </div>
+
+    <aside class="right-panel" aria-label="Settings">
+      <div style="font-weight:700; color:var(--muted);">Appearance</div>
+
+      <div class="row" style="width:100%;">
+        <div style="font-size:13px; color:var(--muted);">Base color</div>
+      </div>
+
+      <div class="row" style="width:100%;">
+        <input id="colorWheel" type="color" value="#6aa8ff" aria-label="Choose base color">
+      </div>
+
+      <div class="row" style="width:100%; margin-top:6px;">
+        <div style="font-size:13px; color:var(--muted);">Dark mode</div>
+        <div class="toggle" onclick="toggleDarkMode()" title="Toggle dark mode" style="margin-left:auto;">
+          <div id="switch" class="switch" aria-hidden="true"><div id="knob" class="knob"></div></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    /* -------------------------
+       Storage & helpers
+    ------------------------- */
+    const STORAGE_KEY = 'tasks_v_custom_color';
+    function parseStoredTasks(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }catch(e){return[];} }
+    function saveTasksToStorage(tasks){ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+
+    /* -------------------------
+       Subtask composer (global)
+    ------------------------- */
+    let composingSubtasks = [];
+    function addSubtaskPreview(){
+      const name = document.getElementById('subtaskInput').value.trim();
+      const time = document.getElementById('subtaskTime').value || null;
+      if(!name) return;
+      composingSubtasks.push({ text: name, time: time, done: false });
+      document.getElementById('subtaskInput').value = '';
+      document.getElementById('subtaskTime').value = '';
+      renderSubtaskPreview();
+    }
+    function renderSubtaskPreview(){
+      const wrap = document.getElementById('subtaskPreview'); wrap.innerHTML = '';
+      composingSubtasks.forEach((st,i) => {
+        const pill = document.createElement('div'); pill.className='pill';
+        pill.textContent = st.text + (st.time ? ' ⏰ ' + st.time : '');
+        const remove = document.createElement('button'); remove.className='icon'; remove.textContent='✖'; remove.title='Remove subtask';
+        remove.onclick = ()=>{ composingSubtasks.splice(i,1); renderSubtaskPreview(); };
+        pill.appendChild(remove); wrap.appendChild(pill);
+      });
+    }
+
+    /* -------------------------
+       Notifications (per parent + per subtask)
+    ------------------------- */
+    const scheduledTimeouts = new Map();
+    function ensureNotificationPermission(){ if(!('Notification' in window)) return; if(Notification.permission==='default') Notification.requestPermission().catch(()=>{}); }
+
+    function scheduleSingle(text, date, time){
+      if(!('Notification' in window) || !date || !time) return;
+      const key = `${text}::${date}::${time}`;
+      if(scheduledTimeouts.has(key)) return;
+      const reminderTime = new Date(`${date}T${time}:00`);
+      const now = new Date(); const delay = reminderTime.getTime() - now.getTime();
+      if(delay <= 0) return;
+      const id = setTimeout(()=>{
+        if(Notification.permission === 'granted'){ try{ new Notification('Reminder', { body: `${text} — ${time}`, tag: key }); }catch(e){} }
+        else showInPageToast(`Reminder: ${text} — ${time}`);
+        scheduledTimeouts.delete(key);
+      }, delay);
+      scheduledTimeouts.set(key, id);
+    }
+
+    function scheduleNotificationForTask(task){
+      if(task.dueDate && task.dueTime) scheduleSingle(task.text, task.dueDate, task.dueTime);
+      if(Array.isArray(task.subtasks)) task.subtasks.forEach(st => { if(st.time && task.dueDate) scheduleSingle(task.text + ' — ' + st.text, task.dueDate, st.time); });
+    }
+
+    function pollingCheck(){
+      const tasks = parseStoredTasks(); const now = Date.now();
+      tasks.forEach(t => {
+        if(t.dueDate && t.dueTime){
+          const rt = new Date(`${t.dueDate}T${t.dueTime}:00`).getTime();
+          const key = `${t.text}::${t.dueDate}::${t.dueTime}`;
+          if(rt - now <= 5000 && rt - now > -60000 && !scheduledTimeouts.has(key)){
+            if(Notification.permission === 'granted'){ try{ new Notification('Reminder', { body: `${t.text} — ${t.dueTime}`, tag: key }); }catch(e){} }
+            else showInPageToast(`Reminder: ${t.text} — ${t.dueTime}`);
+            scheduledTimeouts.set(key,'polled');
+          }
+        }
+        if(Array.isArray(t.subtasks)){
+          t.subtasks.forEach(st => {
+            if(!st.time || !t.dueDate) return;
+            const rt = new Date(`${t.dueDate}T${st.time}:00`).getTime();
+            const key = `${t.text}::${t.dueDate}::${st.time}::${st.text}`;
+            if(rt - now <= 5000 && rt - now > -60000 && !scheduledTimeouts.has(key)){
+              if(Notification.permission === 'granted'){ try{ new Notification('Reminder', { body: `${t.text} — ${st.text} — ${st.time}`, tag: key }); }catch(e){} }
+              else showInPageToast(`Reminder: ${t.text} — ${st.text} — ${st.time}`);
+              scheduledTimeouts.set(key,'polled');
+            }
+          });
+        }
+      });
+    }
+
+    function showInPageToast(msg){
+      const el = document.createElement('div'); el.textContent = msg;
+      Object.assign(el.style,{ position:'fixed', right:'20px', bottom:'20px', background:'rgba(0,0,0,0.8)', color:'#fff', padding:'10px 14px', borderRadius:'10px', zIndex:9999 });
+      document.body.appendChild(el); setTimeout(()=>el.remove(),6000);
+    }
+
+    /* -------------------------
+       Drag & Drop helpers
+    ------------------------- */
+    let dragTaskIndex = null;
+    let dragSubTask = { taskIndex: null, subIndex: null };
+
+    function enableDragForTask(li, index){
+      li.draggable = true;
+      li.addEventListener('dragstart', (e) => {
+        dragTaskIndex = index;
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      li.addEventListener('dragend', () => { dragTaskIndex = null; li.classList.remove('dragging'); });
+      li.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+      li.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if(dragTaskIndex === null || dragTaskIndex === index) return;
+        const tasks = parseStoredTasks();
+        const moved = tasks.splice(dragTaskIndex,1)[0];
+        const insertAt = (dragTaskIndex < index) ? index : index;
+        tasks.splice(insertAt,0,moved);
+        saveTasksToStorage(tasks);
+        renderTaskList(currentFilter);
+      });
+    }
+
+    function enableDragForSubtask(subLi, taskIndex, subIndex){
+      subLi.draggable = true;
+      subLi.addEventListener('dragstart', (e) => {
+        dragSubTask.taskIndex = taskIndex;
+        dragSubTask.subIndex = subIndex;
+        subLi.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      subLi.addEventListener('dragend', () => { dragSubTask = { taskIndex: null, subIndex: null }; subLi.classList.remove('dragging'); });
+      subLi.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+      subLi.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const tasks = parseStoredTasks();
+        const srcTask = dragSubTask.taskIndex;
+        const srcIndex = dragSubTask.subIndex;
+        if(srcTask === null || srcIndex === null) return;
+        if(srcTask !== taskIndex) return;
+        const arr = tasks[taskIndex].subtasks;
+        const moved = arr.splice(srcIndex,1)[0];
+        const targetIndex = subIndex;
+        arr.splice(targetIndex,0,moved);
+        saveTasksToStorage(tasks);
+        renderTaskList(currentFilter);
+      });
+    }
+
+    /* -------------------------
+       Rendering & CRUD with inline edit + per-task composer
+    ------------------------- */
+    let currentFilter = 'today';
+
+    function computeCategory(task){
+      if(task.done) return 'completed';
+      if(task.priority === 'important'){
+        if(task.dueDate){
+          const today = new Date().toLocaleDateString('en-CA');
+          if(task.dueDate === today) return 'today';
+          const d = new Date(task.dueDate + 'T00:00:00'); const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+          if(d.getTime() > todayStart.getTime()) return 'upcoming';
+        }
+        return 'important';
+      }
+      if(task.dueDate){
+        const today = new Date().toLocaleDateString('en-CA');
+        if(task.dueDate === today) return 'today';
+        const d = new Date(task.dueDate + 'T00:00:00'); const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+        if(d.getTime() > todayStart.getTime()) return 'upcoming';
+      }
+      return 'today';
+    }
+
+    function renderTaskList(filter = currentFilter){
+      const container = document.getElementById('taskList'); container.innerHTML = '';
+      const tasks = parseStoredTasks();
+
+      tasks.forEach((t, idx) => {
+        const category = computeCategory(t);
+        let show = false;
+        if(filter === 'today') show = (category === 'today') || (t.priority === 'important' && computeCategory(t) !== 'upcoming');
+        else if(filter === 'important') show = (t.priority === 'important');
+        else show = (category === filter);
+        if(!show) return;
+
+        const li = document.createElement('li'); li.className = 'task' + (t.done ? ' done' : ''); li.dataset.index = idx; li.dataset.category = category;
+
+        enableDragForTask(li, idx);
+
+        const top = document.createElement('div'); top.className = 'task-top';
+        const left = document.createElement('div'); left.className = 'left';
+        const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!t.done;
+        cb.addEventListener('change', ()=>{
+          t.done = cb.checked;
+          if(Array.isArray(t.subtasks) && t.subtasks.length) t.subtasks.forEach(st => st.done = !!cb.checked);
+          saveTaskByIndex(idx, t); renderTaskList(currentFilter);
+        });
+        left.appendChild(cb);
+
+        const title = document.createElement('div'); title.className='title'; title.textContent = t.text;
+        left.appendChild(title);
+        top.appendChild(left);
+
+        const right = document.createElement('div'); right.className='task-actions';
+        if(t.priority === 'important'){ const tag=document.createElement('span'); tag.className='tag important'; tag.textContent='Important'; right.appendChild(tag); }
+        if(t.dueDate || t.dueTime){ const tag=document.createElement('span'); tag.className='tag reminder'; tag.textContent='⏰ ' + (t.dueDate? t.dueDate : '') + (t.dueTime? ' ' + t.dueTime : ''); right.appendChild(tag); }
+
+        const editBtn = document.createElement('button'); editBtn.className='icon-btn'; editBtn.title='Edit task'; editBtn.innerHTML='✎';
+        editBtn.addEventListener('click', ()=> enableInlineEdit(idx, li, title));
+        right.appendChild(editBtn);
+
+        const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.title='Delete task'; delBtn.innerHTML='✖';
+        delBtn.addEventListener('click', ()=>{ if(confirm('Delete this task?')) deleteTask(idx); });
+        right.appendChild(delBtn);
+
+        top.appendChild(right); li.appendChild(top);
+
+        if(Array.isArray(t.subtasks) && t.subtasks.length){
+          const sorted = t.subtasks.slice().sort((a,b)=> (a.done === b.done) ? 0 : (a.done ? 1 : -1));
+          const subUl = document.createElement('ul'); subUl.className='subtasks';
+          sorted.forEach((st, sidx) => {
+            const subLi = document.createElement('li'); subLi.className='subtask';
+            enableDragForSubtask(subLi, idx, sidx);
+
+            const subCb = document.createElement('input'); subCb.type='checkbox'; subCb.checked = !!st.done;
+            const origIndex = t.subtasks.findIndex(x => x === st);
+            subCb.addEventListener('change', () => {
+              t.subtasks[origIndex].done = subCb.checked;
+              const allDone = t.subtasks.every(x => x.done);
+              t.done = allDone;
+              saveTaskByIndex(idx, t);
+              renderTaskList(currentFilter);
+            });
+            subLi.appendChild(subCb);
+
+            const subText = document.createElement('span'); subText.textContent = st.text + (st.time ? ' ⏰ ' + st.time : '');
+            subLi.appendChild(subText);
+
+            const subActions = document.createElement('div'); subActions.style.marginLeft='auto'; subActions.style.display='flex'; subActions.style.gap='6px';
+            const subEdit = document.createElement('button'); subEdit.className='icon-btn'; subEdit.innerHTML='✎'; subEdit.title='Edit subtask';
+            subEdit.addEventListener('click', ()=> inlineEditSubtask(idx, origIndex, subLi, subText));
+            subActions.appendChild(subEdit);
+            const subDel = document.createElement('button'); subDel.className='icon-btn'; subDel.innerHTML='✖'; subDel.title='Delete subtask';
+            subDel.addEventListener('click', ()=>{ if(confirm('Delete this subtask?')){ t.subtasks.splice(origIndex,1); saveTaskByIndex(idx,t); renderTaskList(currentFilter); } });
+            subActions.appendChild(subDel);
+
+            subLi.appendChild(subActions); subUl.appendChild(subLi);
+          });
+          li.appendChild(subUl);
+        }
+
+        const composer = document.createElement('div'); composer.className='task-composer';
+        const addCheck = document.createElement('input'); addCheck.type='checkbox'; addCheck.title='Mark new subtask done by default';
+        composer.appendChild(addCheck);
+        const addName = document.createElement('input'); addName.type='text'; addName.placeholder='New subtask name'; addName.style.padding='6px';
+        composer.appendChild(addName);
+        const addTime = document.createElement('input'); addTime.type='time'; composer.appendChild(addTime);
+        const addBtn = document.createElement('button'); addBtn.className='primary'; addBtn.textContent='＋'; addBtn.title='Add subtask';
+        addBtn.addEventListener('click', ()=>{
+          const name = addName.value.trim(); const time = addTime.value || null; const done = !!addCheck.checked;
+          if(!name) return;
+          t.subtasks = t.subtasks || [];
+          t.subtasks.push({ text: name, time: time, done: done });
+          if(t.subtasks.length && t.subtasks.every(x=>x.done)) t.done = true;
+          saveTaskByIndex(idx, t);
+          if(time && t.dueDate) scheduleSingle(t.text + ' — ' + name, t.dueDate, time);
+          addName.value=''; addTime.value=''; addCheck.checked=false;
+          renderTaskList(currentFilter);
+        });
+        composer.appendChild(addBtn);
+        li.appendChild(composer);
+
+        container.appendChild(li);
+      });
+    }
+
+    function enableInlineEdit(taskIndex, liEl, titleEl){
+      titleEl.contentEditable = 'true'; titleEl.focus();
+      titleEl.addEventListener('blur', function onBlur(){
+        titleEl.contentEditable = 'false';
+        const tasks = parseStoredTasks(); const t = tasks[taskIndex];
+        t.text = titleEl.textContent.trim() || t.text;
+        saveTaskByIndex(taskIndex, t);
+        titleEl.removeEventListener('blur', onBlur);
+      });
+      if(!liEl.querySelector('.inline-meta')){
+        const metaRow = document.createElement('div'); metaRow.className='inline-meta'; metaRow.style.display='flex'; metaRow.style.gap='8px'; metaRow.style.marginTop='6px';
+        const dateInput = document.createElement('input'); dateInput.type='date'; dateInput.value = parseStoredTasks()[taskIndex].dueDate || '';
+        const timeInput = document.createElement('input'); timeInput.type='time'; timeInput.value = parseStoredTasks()[taskIndex].dueTime || '';
+        const prioSelect = document.createElement('select'); prioSelect.innerHTML = '<option value=\"\">Priority</option><option value=\"important\">Important</option><option value=\"normal\">Normal</option>'; prioSelect.value = parseStoredTasks()[taskIndex].priority || '';
+        const saveBtn = document.createElement('button'); saveBtn.className='primary'; saveBtn.textContent='Save';
+        saveBtn.addEventListener('click', ()=>{
+          const tasks = parseStoredTasks(); const t = tasks[taskIndex];
+          t.dueDate = dateInput.value || null; t.dueTime = timeInput.value || null; t.priority = prioSelect.value || '';
+          saveTaskByIndex(taskIndex, t); renderTaskList(currentFilter);
+        });
+        metaRow.appendChild(dateInput); metaRow.appendChild(timeInput); metaRow.appendChild(prioSelect); metaRow.appendChild(saveBtn);
+        liEl.appendChild(metaRow);
+      }
+    }
+
+    function inlineEditSubtask(taskIndex, subIndex, subLiEl, subTextEl){
+      const tasks = parseStoredTasks(); const t = tasks[taskIndex]; const st = t.subtasks[subIndex];
+      const wrapper = document.createElement('div'); wrapper.style.display='flex'; wrapper.style.gap='8px'; wrapper.style.alignItems='center';
+      const nameInput = document.createElement('input'); nameInput.type='text'; nameInput.value = st.text; nameInput.style.padding='6px';
+      const timeInput = document.createElement('input'); timeInput.type='time'; timeInput.value = st.time || '';
+      const saveBtn = document.createElement('button'); saveBtn.className='primary'; saveBtn.textContent='Save';
+      saveBtn.addEventListener('click', ()=>{
+        st.text = nameInput.value.trim() || st.text; st.time = timeInput.value || null;
+        saveTaskByIndex(taskIndex, t); renderTaskList(currentFilter);
+      });
+      const cancelBtn = document.createElement('button'); cancelBtn.className='icon-btn'; cancelBtn.textContent='✖'; cancelBtn.title='Cancel';
+      cancelBtn.addEventListener('click', ()=> renderTaskList(currentFilter));
+      wrapper.appendChild(nameInput); wrapper.appendChild(timeInput); wrapper.appendChild(saveBtn); wrapper.appendChild(cancelBtn);
+      subLiEl.innerHTML = ''; subLiEl.appendChild(wrapper);
+    }
+
+    function addTask(taskText=null, done=false, dueDate=null, dueTime=null, priority=null, subtasks=null){
+      ensureNotificationPermission();
+      const input = document.getElementById('taskInput'); const dateInput = document.getElementById('dueDate'); const timeInput = document.getElementById('dueTime'); const priorityInput = document.getElementById('priority');
+      const text = taskText || input.value.trim(); if(!text) return;
+      const t = { text, done: !!done, dueDate: dueDate || dateInput.value || null, dueTime: dueTime || timeInput.value || null, priority: priority || priorityInput.value || '', subtasks: Array.isArray(subtasks) ? subtasks : composingSubtasks.slice() };
+      const tasks = parseStoredTasks(); tasks.push(t); saveTasksToStorage(tasks);
+      if(t.dueDate && t.dueTime) scheduleSingle(t.text, t.dueDate, t.dueTime);
+      if(Array.isArray(t.subtasks)) t.subtasks.forEach(st => { if(st.time && t.dueDate) scheduleSingle(t.text + ' — ' + st.text, t.dueDate, st.time); });
+      input.value=''; dateInput.value=''; timeInput.value=''; priorityInput.value=''; composingSubtasks = []; renderSubtaskPreview(); renderTaskList(currentFilter);
+    }
+
+    function saveTaskByIndex(index, taskObj){ const tasks = parseStoredTasks(); tasks[index] = taskObj; saveTasksToStorage(tasks); if(taskObj.dueDate && taskObj.dueTime) scheduleNotificationForTask(taskObj); }
+    function deleteTask(index){ const tasks = parseStoredTasks(); tasks.splice(index,1); saveTasksToStorage(tasks); renderTaskList(currentFilter); }
+
+    /* Filtering */
+    function filterTasks(category, tabEl){ currentFilter = category; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); if(tabEl) tabEl.classList.add('active'); renderTaskList(category); }
+
+    /* -------------------------
+       Color wheel engine (single control)
+       - user picks a base color; we derive readable UI colors
+       - applyBaseColor must NOT overwrite --text when dark mode is active
+    ------------------------- */
+    function hexToRgb(hex) {
+      hex = hex.replace('#','');
+      if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+      const n = parseInt(hex,16);
+      return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
+    }
+    function rgbToHsl(r,g,b){
+      r/=255; g/=255; b/=255;
+      const max = Math.max(r,g,b), min = Math.min(r,g,b);
+      let h=0, s=0, l=(max+min)/2;
+      if(max!==min){
+        const d = max-min;
+        s = l>0.5 ? d/(2-max-min) : d/(max+min);
+        switch(max){
+          case r: h = (g-b)/d + (g<b?6:0); break;
+          case g: h = (b-r)/d + 2; break;
+          case b: h = (r-g)/d + 4; break;
+        }
+        h /= 6;
+      }
+      return { h: Math.round(h*360), s: Math.round(s*100), l: Math.round(l*100) };
+    }
+    function hslToRgb(h,s,l){
+      h/=360; s/=100; l/=100;
+      if(s===0){ const v = Math.round(l*255); return {r:v,g:v,b:v}; }
+      const q = l < 0.5 ? l*(1+s) : l + s - l*s;
+      const p = 2*l - q;
+      const hue2rgb = (p,q,t) => {
+        if(t<0) t+=1; if(t>1) t-=1;
+        if(t<1/6) return p + (q-p)*6*t;
+        if(t<1/2) return q;
+        if(t<2/3) return p + (q-p)*(2/3 - t)*6;
+        return p;
+      };
+      const r = Math.round(hue2rgb(p,q,h+1/3)*255);
+      const g = Math.round(hue2rgb(p,q,h)*255);
+      const b = Math.round(hue2rgb(p,q,h-1/3)*255);
+      return { r,g,b };
+    }
+    function rgbToHex(r,g,b){ const toHex = v => v.toString(16).padStart(2,'0'); return '#' + toHex(r) + toHex(g) + toHex(b); }
+    function clamp(v,min,max){ return Math.min(max, Math.max(min, v)); }
+
+    function derivePaletteFromBase(baseHex){
+      const rgb = hexToRgb(baseHex);
+      const baseHsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+      const accentH = (baseHsl.h + 0) % 360;
+      const accentS = clamp(baseHsl.s + 8, 20, 95);
+      const accentL = clamp(baseHsl.l - 8, 8, 80);
+
+      const buttonH = accentH;
+      const buttonS = clamp(accentS - 6, 12, 90);
+      const buttonL = clamp(accentL + 6, 12, 92);
+
+      const importantH = (accentH + 20) % 360;
+      const importantS = clamp(accentS + 6, 12, 95);
+      const importantL = clamp(accentL + 12, 12, 92);
+
+      const bg1H = accentH;
+      const bg1S = clamp(baseHsl.s - 40, 6, 60);
+      const bg1L = clamp(baseHsl.l + 60, 92, 98);
+
+      const bg2H = accentH;
+      const bg2S = clamp(baseHsl.s - 30, 6, 70);
+      const bg2L = clamp(baseHsl.l + 72, 94, 99);
+
+      const cardH = accentH;
+      const cardS = clamp(baseHsl.s - 20, 6, 70);
+      const cardL = clamp(baseHsl.l + 30, 88, 98);
+
+      const accentHex = rgbToHex(...Object.values(hslToRgb(accentH, accentS, accentL)));
+      const buttonHex = rgbToHex(...Object.values(hslToRgb(buttonH, buttonS, buttonL)));
+      const importantHex = rgbToHex(...Object.values(hslToRgb(importantH, importantS, importantL)));
+      const bg1Hex = rgbToHex(...Object.values(hslToRgb(bg1H, bg1S, bg1L)));
+      const bg2Hex = rgbToHex(...Object.values(hslToRgb(bg2H, bg2S, bg2L)));
+      const cardHex = rgbToHex(...Object.values(hslToRgb(cardH, cardS, cardL)));
+
+      const mutedH = accentH;
+      const mutedS = clamp(baseHsl.s - 30, 6, 60);
+      const mutedL = clamp(baseHsl.l - 10, 20, 60);
+      const mutedHex = rgbToHex(...Object.values(hslToRgb(mutedH, mutedS, mutedL)));
+
+      // tab background: slightly lighter than card for light mode
+      const tabBgH = cardH;
+      const tabBgS = clamp(cardS - 6, 6, 70);
+      const tabBgL = clamp(cardL + 4, 88, 98);
+      const tabBgHex = rgbToHex(...Object.values(hslToRgb(tabBgH, tabBgS, tabBgL)));
+
+      return {
+        accent: accentHex,
+        button: buttonHex,
+        important: importantHex,
+        bg1: bg1Hex,
+        bg2: bg2Hex,
+        card: cardHex,
+        tabBg: tabBgHex,
+        tabActive: importantHex,
+        subtaskBg: rgbToHex(...Object.values(hslToRgb(cardH, clamp(cardS-30,6,70), clamp(cardL+6,88,98)))),
+        muted: mutedHex,
+        textLight: (baseHsl.l > 60) ? '#222' : '#111',
+        textDark: '#ffffff'
+      };
+    }
+
+    function adjustHexLightness(hex, delta){
+      const rgb = hexToRgb(hex);
+      const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+      const newL = clamp(hsl.l + delta, 0, 100);
+      const rgb2 = hslToRgb(hsl.h, hsl.s, newL);
+      return rgbToHex(rgb2.r, rgb2.g, rgb2.b);
+    }
+
+    function applyBaseColor(hex){
+      const p = derivePaletteFromBase(hex);
+      const root = document.documentElement;
+      // Always apply accent/button/important/bg/card/muted from base color
+      root.style.setProperty('--accent', p.accent);
+      root.style.setProperty('--button', p.button);
+      root.style.setProperty('--important', p.important);
+      root.style.setProperty('--bg1', p.bg1);
+      root.style.setProperty('--bg2', p.bg2);
+      root.style.setProperty('--card', p.card);
+      root.style.setProperty('--tab-bg', p.tabBg);
+      root.style.setProperty('--tab-active', p.tabActive);
+      root.style.setProperty('--subtask-bg', p.subtaskBg);
+      root.style.setProperty('--muted', p.muted);
+
+      // Only set --text if NOT in dark mode; dark mode will force white text separately
+      if(!document.body.classList.contains('dark')){
+        root.style.setProperty('--text', p.textLight);
+      }
+
+      // persist base color
+      localStorage.setItem('tp_base_color', hex);
+    }
+
+    /* -------------------------
+       Dark mode toggle (ensures base color still applies)
+       - when enabling dark mode: set body.dark, set --text to white,
+         reapply palette then darken card/tab/bg for contrast
+       - when disabling: remove body.dark, reapply palette and allow --text from palette
+    ------------------------- */
+    function setDarkMode(enabled){
+      const base = localStorage.getItem('tp_base_color') || document.getElementById('colorWheel').value || '#6aa8ff';
+      if(enabled){
+        document.body.classList.add('dark');
+        // force text/icons to white for readability
+        document.documentElement.style.setProperty('--text', '#ffffff');
+        document.documentElement.style.setProperty('--muted', '#c7cfe6');
+        // reapply palette so accent/button/important still reflect base color
+        applyBaseColor(base);
+        // darken card and tab backgrounds for clear separation from page bg
+        const currentCard = getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#111827';
+        const darkCard = adjustHexLightness(currentCard, -28);
+        document.documentElement.style.setProperty('--card', darkCard);
+        // tab background slightly different from card in dark mode
+        const currentTab = getComputedStyle(document.documentElement).getPropertyValue('--tab-bg').trim() || darkCard;
+        const darkTab = adjustHexLightness(currentTab, -18);
+        document.documentElement.style.setProperty('--tab-bg', darkTab);
+        // task border lighter in dark mode
+        document.documentElement.style.setProperty('--task-border', 'rgba(255,255,255,0.06)');
+        // subtask background subtle
+        const currentSub = getComputedStyle(document.documentElement).getPropertyValue('--subtask-bg').trim() || darkCard;
+        document.documentElement.style.setProperty('--subtask-bg', adjustHexLightness(currentSub, -14));
+        // banner
+        document.documentElement.style.setProperty('--banner', adjustHexLightness(base, -36));
+      } else {
+        document.body.classList.remove('dark');
+        // reapply palette; applyBaseColor will set --text for light mode
+        applyBaseColor(base);
+        // restore sensible borders for light mode
+        document.documentElement.style.setProperty('--task-border', 'rgba(0,0,0,0.06)');
+        document.documentElement.style.setProperty('--banner', adjustHexLightness(base, +40));
+      }
+      localStorage.setItem('tp_dark_mode', enabled ? '1' : '0');
+      // update knob position
+      const knob = document.getElementById('knob');
+      if(knob) knob.style.left = enabled ? '21px' : '3px';
+    }
+
+    function toggleDarkMode(){
+      const enabled = document.body.classList.contains('dark');
+      setDarkMode(!enabled);
+    }
+
+    /* -------------------------
+       Restore saved base color and dark mode on load
+    ------------------------- */
+    (function restoreSettings(){
+      const savedColor = localStorage.getItem('tp_base_color') || '#6aa8ff';
+      const colorInput = document.getElementById('colorWheel');
+      if(colorInput) colorInput.value = savedColor;
+      applyBaseColor(savedColor);
+
+      const savedDark = localStorage.getItem('tp_dark_mode') === '1';
+      setTimeout(()=>{ // small delay so CSS variables are set before toggling knob
+        setDarkMode(savedDark);
+      }, 0);
+    })();
+
+    // wire color wheel
+    const colorInputEl = document.getElementById('colorWheel');
+    if(colorInputEl){
+      colorInputEl.addEventListener('input', (e) => {
+        applyBaseColor(e.target.value);
+        // if dark mode is active, ensure text remains white and dark card/tab are applied
+        if(document.body.classList.contains('dark')){
+          setDarkMode(true);
+        }
+      });
+    }
+
+    /* -------------------------
+       Init & polling
+    ------------------------- */
+    function loadAll(){ const tasks = parseStoredTasks(); tasks.forEach(t=>{ if(t.dueDate && t.dueTime) scheduleNotificationForTask(t); }); renderTaskList(currentFilter); }
+    setInterval(pollingCheck, 5000);
+    window.addEventListener('beforeunload', ()=>{ scheduledTimeouts.forEach(id=>{ if(typeof id === 'number') clearTimeout(id); }); scheduledTimeouts.clear(); });
+    document.getElementById('taskInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') addTask(); });
+    document.querySelectorAll('.controls input, .controls select, .controls button').forEach(el=>{ el.addEventListener('focus', ensureNotificationPermission, { once:true }); el.addEventListener('click', ensureNotificationPermission, { once:true }); });
+
+    loadAll();
+
+    // expose for debugging
+    window._tp = { addTask, renderTaskList, parseStoredTasks, saveTasksToStorage, composingSubtasks, renderSubtaskPreview, applyBaseColor, setDarkMode };
+  </script>
+</body>
+</html>
